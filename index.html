@@ -195,7 +195,7 @@
   </div>
 
   <script>
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let ctx = null;
     let oscillator = null;
     let gainNode = null;
     let isPlaying = false;
@@ -207,6 +207,11 @@
     const waveBtns = document.querySelectorAll('.wave-btn');
 
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    function getCtx() {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      return ctx;
+    }
 
     function freqToNote(freq) {
       if (freq <= 0) return '';
@@ -223,29 +228,29 @@
       freqDisplay.textContent = freq;
       noteLabel.textContent = freqToNote(freq);
       if (isPlaying && oscillator) {
-        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+        oscillator.frequency.setValueAtTime(freq, getCtx().currentTime);
       }
     }
 
     function startSound() {
-      if (ctx.state === 'suspended') ctx.resume();
-      oscillator = ctx.createOscillator();
-      gainNode = ctx.createGain();
+      const c = getCtx();
+      if (c.state === 'suspended') c.resume();
+      oscillator = c.createOscillator();
+      gainNode = c.createGain();
       oscillator.type = document.querySelector('.wave-btn.active').dataset.wave;
-      oscillator.frequency.setValueAtTime(parseFloat(slider.value), ctx.currentTime);
-      gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 4);
+      oscillator.frequency.setValueAtTime(parseFloat(slider.value), c.currentTime);
+      gainNode.gain.setValueAtTime(0.5, c.currentTime);
       oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
+      gainNode.connect(c.destination);
       oscillator.start();
       isPlaying = true;
-      playBtn.innerHTML = '&#9632; Stop';
+      playBtn.textContent = '\u25A0 Stop';
       playBtn.classList.add('playing');
     }
 
     function stopSound() {
       if (oscillator) {
-        oscillator.stop();
+        try { oscillator.stop(); } catch (_) {}
         oscillator.disconnect();
         oscillator = null;
       }
@@ -254,17 +259,17 @@
         gainNode = null;
       }
       isPlaying = false;
-      playBtn.innerHTML = '&#9654; Play';
+      playBtn.textContent = '\u25B6 Play';
       playBtn.classList.remove('playing');
     }
 
-    playBtn.addEventListener('click', () => {
-      if (!isPlaying) {
-        startSound();
-      } else {
-        stopSound();
-      }
-    });
+    function togglePlay() {
+      if (!isPlaying) startSound();
+      else stopSound();
+    }
+
+    playBtn.addEventListener('click', togglePlay);
+    playBtn.addEventListener('touchend', (e) => { e.preventDefault(); togglePlay(); });
 
     slider.addEventListener('input', updateDisplay);
 
